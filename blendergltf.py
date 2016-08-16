@@ -14,7 +14,7 @@ default_settings = {
     'meshes_apply_modifiers': True,
     'images_embed_data': False,
     'asset_profile': 'WEB',
-    'global_matrix': mathutils.Matrix.Identity(4)
+    'global_matrix': None,
 }
 
 
@@ -959,35 +959,41 @@ def export_gltf(scene_delta, settings={}):
     g_buffers = []
 
     object_list = list(scene_delta.get('objects', []))
+    mesh_list = []
     mod_meshes = {}
-    mesh_names = {}
 
-    global_mat = settings['global_matrix']
-    apply_modifiers = settings['meshes_apply_modifiers']
+    # Apply modifiers
+    if settings['meshes_apply_modifiers']:
+        scene = bpy.context.scene
+        mod_obs = [ob for ob in object_list if ob.is_modified(scene, 'PREVIEW')]
+        for mesh in scene_delta.get('meshes', []):
+            mod_users = [ob for ob in mod_obs if ob.data == mesh]
 
-    # Apply modifiers and transform using the global matrix
-    scene = bpy.context.scene
-    for mesh in scene_delta.get('meshes', []):
-        # Find all users of this mesh
-        obj_users = [ob for ob in object_list if ob.data == mesh]
+            # Only convert meshes with modifiers, otherwise each non-modifier
+            # user ends up with a copy of the mesh and we lose instancing
+            mod_meshes.update({ob.name: ob.to_mesh(scene, True, 'PREVIEW') for ob in mod_users})
 
-        # For each user of the mesh
-        for ob in obj_users:
+            # Add unmodified meshes directly to the mesh list
+            if len(mod_users) < mesh.users:
+                mesh_list.append(mesh)
 
-            # Apply modifiers
-            mesh_copy = ob.to_mesh(scene, apply_modifiers, 'PREVIEW')
+        mesh_list.extend(mod_meshes.values())
 
-            world_mat = ob.matrix_world
-            inv_world_mat = world_mat.inverted()
+    else:
+        mesh_list = scene_delta.get('meshes', [])
 
-            # Transform the new mesh
-            mesh_copy.transform(inv_world_mat * global_mat * world_mat)
+    # Apply global transform
+    global_matrix = settings['global_matrix']
+    transformed_meshes = []
+    mesh_names = {mesh.name: mesh.name for mesh in mesh_list}
+    if global_matrix != None:
+        for i, mesh in enumerate(mesh_list):
+            mesh_copy = mesh.copy()
+            mesh_copy.transform(global_matrix)
 
-            # Link the new mesh to the original object
-            mod_meshes[ob.name] = mesh_copy
+            mesh_list[i] = mesh_copy
+            transformed_meshes.append(mesh_copy)
             mesh_names[mesh_copy.name] = mesh.name
-
-    mesh_list = mod_meshes.values()
 
     gltf = {
         'asset': {
@@ -1038,6 +1044,9 @@ def export_gltf(scene_delta, settings={}):
 
     # Remove any temporary meshes from applying modifiers
     for mesh in mod_meshes.values():
+        bpy.data.meshes.remove(mesh)
+    # Remove any temporary meshes from applying transforms
+    for mesh in transformed_meshes:
         bpy.data.meshes.remove(mesh)
 
     return gltf
