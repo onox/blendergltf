@@ -93,6 +93,7 @@ else:
         asset_profile = EnumProperty(items=profile_items, name='Profile', default='WEB')
         ext_export_physics = BoolProperty(name='Export Physics Settings', default=False)
         ext_export_actions = BoolProperty(name='Export Actions', default=False)
+        always_index_uint = BoolProperty(name='Always use uint indices', default=True)
 
         pretty_print = BoolProperty(
             name="Pretty-print / indent JSON",

@@ -27,6 +27,7 @@ default_settings = {
     'asset_profile': 'WEB',
     'ext_export_physics': False,
     'ext_export_actions': False,
+    'always_index_uint': True,
 }
 
 
@@ -639,7 +640,7 @@ def export_meshes(settings, meshes, skinned_meshes):
                     "Invalid polygon with {} vertices.".format(len(indices))
                 )
 
-        if max_vert_index > 65535:
+        if max_vert_index > 65535 or settings["always_index_uint"]:
             # Use the integer index extension
             if OES_ELEMENT_INDEX_UINT not in g_glExtensionsUsed:
                 g_glExtensionsUsed.append(OES_ELEMENT_INDEX_UINT)
@@ -653,7 +654,7 @@ def export_meshes(settings, meshes, skinned_meshes):
 
             # If we got this far use integers if we have to, if this is not
             # desirable we would have bailed out by now.
-            if max_vert_index > 65535:
+            if max_vert_index > 65535 or settings["always_index_uint"]:
                 itype = Buffer.UNSIGNED_INT
                 istride = 4
             else:
