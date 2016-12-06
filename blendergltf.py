@@ -77,7 +77,7 @@ class Vertex:
         i = loop.index
         self.co = mesh.vertices[vi].co.freeze()
         self.normal = loop.normal.freeze()
-        self.uvs = tuple(layer.data[i].uv.freeze() for layer in mesh.uv_layers)
+        self.uvs = tuple([mesh.uv_layers.active.data[i].uv.freeze()])
         self.loop_indices = [i]
 
         # Take the four most influential groups
@@ -550,7 +550,7 @@ def export_meshes(settings, meshes, skinned_meshes):
         me.calc_tessface()
 
         num_loops = len(me.loops)
-        num_uv_layers = len(me.uv_layers)
+        num_uv_layers = 1 # Only export active UV map
         vertex_size = (3 + 3 + num_uv_layers * 2) * 4
 
         buf = Buffer(me.name)
